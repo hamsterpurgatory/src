@@ -1,4 +1,5 @@
 // License: AGPLv3 / https://www.gnu.org/licenses/agpl-3.0.en.html
+// Virtually all hamsters were harmed in the making of this game.
 // HamsterPurgatory.com / kick.com/HamsterPurgatory
 
 #ifdef WEB
@@ -370,6 +371,7 @@ uint head = 0;
 #ifdef PLAY_RANDOM
 uint max_head = 0;
 #endif
+float nnt = 0.f; // network next time
 
 // camera vars
 int mx=0, my=0, lx=0, ly=0, md=0, md2=0, w2=0.f;
@@ -407,8 +409,7 @@ const vec a6 = (vec){-0.721359f          , -0.5129505395889282f , -0.07f}; // wa
 const vec a7 = (vec){-0.7842308878898621f, -0.7341938614845276f , -0.07f}; // trash can
 
 // network data & emotes
-uint vlen=0,vcid=0,vlcid=0,vemo=0,vemoi=0;
-char vact[32] = {0};
+uint vemo=0,vemoi=0;
 float vemot = 0.f;
 
 // talking
@@ -777,6 +778,9 @@ EM_ASYNC_JS(int, get_head, (), {
         return (value > 100) ? (value - 100) : 0;
     }catch(e){return 0;}
 });
+EM_ASYNC_JS(int, is_audio_playing, (), {
+    if(window.voiceAudio && !window.voiceAudio.paused && !window.voiceAudio.ended){return 1;}else{return 0;}
+});
 EM_JS(uint32_t, secure_random_uint, (),
 {
     var array = new Uint32Array(1);
@@ -803,46 +807,70 @@ void addChat(const uint i, const char* msg)
 }
 void get_data_callback(void* user_data, void* buff, int size)
 {
+    // check for any errors in the data
     if(size < 8){return;}
     if(((char*)buff)[1] != '|'){return;}
 
-    // probs parsing with sscanf might have been a better idea, or just
-    // using a manual character loop.
-    // sscanf(temp, "%d|%d|%31[^|]|%15[^|]|%511[^|]", &vcid, &vlen, vact, vmsg);
-    // also i should have passed vact and vemo as integer ids.
-    char vmsg[512] = {0};
-    memset(&vact, 0x00, sizeof(vact));
-    char vemos[16] = {0};
-    vlcid = vcid;
+    // let's go
+    cid = 0; // new sequence so reset back to sitting position
+
+    // null terminate the buffer data for sscanf
     char temp[2048];
     if((size_t)size >= sizeof(temp)){size = sizeof(temp) - 1;}
     memcpy(temp, buff, size);
     temp[size] = '\0';
-    //printf("recv: %s\n", temp);
-    char *token = strtok(temp, "|");
 
-    char tmps[16] = {0};
-    if(token){strncpy(tmps, token, sizeof(tmps)-1);tmps[sizeof(tmps)-1] = '\0';token = strtok(NULL, "|");}
-    vcid = (atoi(tmps)*4)+12; // convert 0-3 id to 12-24
-    if(vcid != 0 && vlcid != vcid)
-    {
-        cid = 0; // new sequence so reset back to sitting position
-        if(token){strncpy(tmps, token, sizeof(tmps)-1);tmps[sizeof(tmps)-1] = '\0';token = strtok(NULL, "|");}
-        vlen = atoi(tmps);
-        if(vlen < 1){vlen = 1;}
-        if(token){strncpy(vact, token, sizeof(vact)-1);vact[sizeof(vact)-1] = '\0';token = strtok(NULL, "|");}
-        if(token){strncpy(vemos, token, sizeof(vemos)-1);vemos[sizeof(vemos)-1] = '\0';token = strtok(NULL, "|");}
-        /**/ if(strcmp(vemos, "laugh") == 0){vemo=1;vemoi=vcid;vemot=t+vlen;}
-        else if(strcmp(vemos, "dance") == 0){vemo=2;vemoi=vcid;vemot=t+vlen;}
-        else if(strcmp(vemos, "yes"  ) == 0){vemo=3;vemoi=vcid;vemot=t+vlen;}
-        else if(strcmp(vemos, "no"   ) == 0){vemo=4;vemoi=vcid;vemot=t+vlen;}
-        if(token){strncpy(vmsg, token, sizeof(vmsg)-1);vmsg[sizeof(vmsg)-1] = '\0';}
-        for(size_t i = 0; vmsg[i]; i++){if(vmsg[i] == '"' || vmsg[i] == '<' || vmsg[i] == '>'){vmsg[i] = '\'';}} // some basic escaping or peeps be making LLMs write JS escapes to chat if prompt injection
-        /**/ if(vcid == 12){printf("Catgirl: %s\n"  , vmsg);addChat(vcid, vmsg);}
-        else if(vcid == 16){printf("Scientist: %s\n", vmsg);addChat(vcid, vmsg);}
-        else if(vcid == 20){printf("Theorist: %s\n" , vmsg);addChat(vcid, vmsg);}
-        else if(vcid == 24){printf("Karen: %s\n"    , vmsg);addChat(vcid, vmsg);}
-    }
+    // parsed strings (i should have passed vact and vemo as integer ids)
+    uint vlen=0, vcid=0;
+    char vmsg[512] = {0};
+    char vact[32] = {0};
+    char vemos[16] = {0};
+
+    // parse data
+    sscanf(temp, "%d|%d|%31[^|]|%15[^|]|%511[^|]", &vcid, &vlen, vact, vemos, vmsg);
+    vcid = (vcid*4)+12; // convert 0-3 id to 12-24
+    for(size_t i = 0; vmsg[i]; i++){if(vmsg[i] == '"' || vmsg[i] == '<' || vmsg[i] == '>'){vmsg[i] = '\'';}} // some basic escaping to prevent potential prompt injection
+
+    // set emote
+    /**/ if(strcmp(vemos, "laugh") == 0){vemo=1;vemoi=vcid;vemot=t+vlen;}
+    else if(strcmp(vemos, "dance") == 0){vemo=2;vemoi=vcid;vemot=t+vlen;}
+    else if(strcmp(vemos, "yes"  ) == 0){vemo=3;vemoi=vcid;vemot=t+vlen;}
+    else if(strcmp(vemos, "no"   ) == 0){vemo=4;vemoi=vcid;vemot=t+vlen;}
+
+    // update the html chatlog
+    /**/ if(vcid == 12){printf("Catgirl: %s\n"  , vmsg);addChat(vcid, vmsg);}
+    else if(vcid == 16){printf("Scientist: %s\n", vmsg);addChat(vcid, vmsg);}
+    else if(vcid == 20){printf("Theorist: %s\n" , vmsg);addChat(vcid, vmsg);}
+    else if(vcid == 24){printf("Karen: %s\n"    , vmsg);addChat(vcid, vmsg);}
+
+    // play audio / do talking
+    EM_ASM({
+        var vhead = $0;
+        if(!window.voiceAudio){window.voiceAudio = new Audio();}
+        var audio = window.voiceAudio;
+        audio.src = '/archive/v' + vhead + '.mp3?' + Date.now();
+        audio.load();
+        audio.play().catch(err => {document.getElementById('playContainer').style.display='block'});
+    }, head);
+    setTalking(vcid);
+
+    // do action
+    uint isact = 0;
+    /**/ if(strcmp(vact, "washingmachine") == 0){doWash (vcid); isact=1;}
+    else if(strcmp(vact, "microwave"     ) == 0){doMicro(vcid); isact=1;}
+    else if(strcmp(vact, "sink"          ) == 0){doSink (vcid); isact=1;}
+    else if(strcmp(vact, "choppingboard" ) == 0){doChop (vcid); isact=1;}
+    else if(strcmp(vact, "blender"       ) == 0){doBlend(vcid); isact=1;}
+    else if(strcmp(vact, "toaster"       ) == 0){doToast(vcid); isact=1;}
+    else if(strcmp(vact, "trashcan"      ) == 0){doTrash(vcid); isact=1;}
+
+    // increment the head
+    head++;
+    if(head >= max_head){head = esRand(0, max_head-32);}
+    updateURL();
+
+    // set next head poll time
+    if(isact == 1 && vlen < 6){nnt = t+6;}else{nnt = t+(float)vlen;}
 }
 #endif
 
@@ -943,63 +971,17 @@ void main_loop()
 
 #ifdef WEB
     // check for new speech
+    if(t > nnt)
     {
-        static float nt = 0.f;
-        if(t > nt)
+        clearTalking();
+        if(vemo != 0 && t > vemot){vemo = 0;} // reset emote; time is up
+        if(is_audio_playing() == 0)
         {
-            if(vemo != 0 && t > vemot){vemo = 0;} // reset emote; time is up
             char fn[256];
             snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
-            //printf("fn1: %s\n", fn);
             emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
-            if(vlcid != vcid)
-            {
-                EM_ASM({
-                    var vhead = $0;
-                    if(!window.voiceAudio){
-                        window.voiceAudio = new Audio();
-                        window.voiceAudio.addEventListener('ended', function(){this.isBusy = false;});
-                        window.voiceAudio.addEventListener('error', function(){this.isBusy = false;});
-                    }
-                    var audio = window.voiceAudio;
-                    if(!audio.isBusy){
-                        audio.isBusy = true;
-                        audio.src = '/archive/v' + vhead + '.mp3?'+Date.now();
-                        audio.load();
-                        audio.oncanplaythrough = function(){
-                            audio.play().catch(function(err){
-                                console.warn("Play was blocked or failed:", err);
-                                audio.isBusy = false;
-                            });
-                        };
-                    }
-                }, head);
-                setTalking(vcid);
-                uint isact = 0;
-                /**/ if(strcmp(vact, "washingmachine") == 0){doWash (vcid); isact=1;}
-                else if(strcmp(vact, "microwave"     ) == 0){doMicro(vcid); isact=1;}
-                else if(strcmp(vact, "sink"          ) == 0){doSink (vcid); isact=1;}
-                else if(strcmp(vact, "choppingboard" ) == 0){doChop (vcid); isact=1;}
-                else if(strcmp(vact, "blender"       ) == 0){doBlend(vcid); isact=1;}
-                else if(strcmp(vact, "toaster"       ) == 0){doToast(vcid); isact=1;}
-                else if(strcmp(vact, "trashcan"      ) == 0){doTrash(vcid); isact=1;}
-                if(isact == 1)
-                {
-                    if(vlen >= 6){nt = t+(float)vlen;}else{nt = t+6;}
-                }
-                else{nt = t+(float)vlen;}
-                head++;
-#ifdef PLAY_RANDOM
-                if(head >= max_head)
-                {
-                    head = esRand(0, max_head-32);
-                    vlcid = 0;
-                }
-#endif
-                updateURL();
-            }
-            else{clearTalking();nt = t+1.f;}
         }
+        nnt = t+1.f;
     }
 #endif
     
