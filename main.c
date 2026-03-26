@@ -1042,7 +1042,7 @@ void main_loop()
                     {
                         if(isact == 1 && audio_len < 6.f){nt = t+6.f;}else{nt = t+audio_timeleft;}
                     }
-                    else{nt = t+audio_len;} // this ensures that if audio play in browser (security) is disabled it will still wait a fair amount of time between wach line
+                    else{nt = t+audio_len;} // this ensures that if audio play in browser (security) is disabled it will still wait a fair amount of time between each line
                 }
                 else{nt = t+0.1f;}
             }
