@@ -74,9 +74,9 @@
 </head>
 <body>
     <div id="logOverlay"></div>
-    <div class="play-container" id="playContainer" onclick="document.getElementById('playContainer').style.display='none'"><center>UNMUTE</center><br><img src="audio.png" style="width:160px;height:auto;" /></div>
+    <div class="play-container" id="playContainer" onclick="reloadAudio()"><center>UNMUTE</center><br><img src="audio.png" style="width:160px;height:auto;" /></div>
     <img class="load" id="load" src="load.jpg"/>
-    <canvas id="canvas" onclick="this.focus();document.getElementById('playContainer').style.display='none'" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+    <canvas id="canvas" onclick="this.focus();reloadAudio()" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     <script type='text/javascript'>
         var Module = {canvas: document.getElementById('canvas')};
         const logOverlay = document.getElementById('logOverlay');
@@ -92,6 +92,12 @@
                 logOverlay.innerHTML = lines[lines.length - 1] || "";
             }else{
                 logOverlay.innerHTML = lines.join("\n");
+            }
+        }
+        function reloadAudio(){
+            if(document.getElementById('playContainer').style.display == 'block'){
+                document.getElementById('playContainer').style.display='none';
+                Module._reloadSpeech();
             }
         }
     </script>
