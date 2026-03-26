@@ -433,6 +433,7 @@ void setCA(const uint u, const vec ep)
     else if(u == 16){cs = s2;}
     else if(u == 20){cs = s3;}
     else if(u == 24){cs = s4;}
+    isact = 1;
 }
 void doBlend(const uint c){blend=t+6.f;setCA(c, a4);}
 void doMicro(const uint c){micro=t+6.f;setCA(c, a1);}
@@ -859,6 +860,7 @@ void get_data_callback(void* user_data, void* buff, int size)
 
     // let's go
     cid = 0; // new sequence so reset back to sitting position
+    isact = 0; // reset action state
     nwait = t+3.f; // set how long we are willing to wait for audio to load
 
     // null terminate the buffer data for sscanf
@@ -891,13 +893,13 @@ void get_data_callback(void* user_data, void* buff, int size)
     else if(strcmp(vemos, "no"   ) == 0){vemo=4;vemoi=vcid;}
 
     // do action
-    /**/ if(strcmp(vact, "washingmachine") == 0){doWash (vcid); isact=1;}
-    else if(strcmp(vact, "microwave"     ) == 0){doMicro(vcid); isact=1;}
-    else if(strcmp(vact, "sink"          ) == 0){doSink (vcid); isact=1;}
-    else if(strcmp(vact, "choppingboard" ) == 0){doChop (vcid); isact=1;}
-    else if(strcmp(vact, "blender"       ) == 0){doBlend(vcid); isact=1;}
-    else if(strcmp(vact, "toaster"       ) == 0){doToast(vcid); isact=1;}
-    else if(strcmp(vact, "trashcan"      ) == 0){doTrash(vcid); isact=1;}
+    /**/ if(strcmp(vact, "washingmachine") == 0){doWash (vcid);}
+    else if(strcmp(vact, "microwave"     ) == 0){doMicro(vcid);}
+    else if(strcmp(vact, "sink"          ) == 0){doSink (vcid);}
+    else if(strcmp(vact, "choppingboard" ) == 0){doChop (vcid);}
+    else if(strcmp(vact, "blender"       ) == 0){doBlend(vcid);}
+    else if(strcmp(vact, "toaster"       ) == 0){doToast(vcid);}
+    else if(strcmp(vact, "trashcan"      ) == 0){doTrash(vcid);}
 
     // play audio / do talking
     EM_ASM({
@@ -1034,7 +1036,7 @@ void main_loop()
                 snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
                 emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
             }
-            nnt = t+1.f;
+            nnt = t+0.5f;
         }
         else
         {
@@ -1050,7 +1052,7 @@ void main_loop()
                 const float audio_timeleft = get_audio_timeleft();
                 if(audio_timeleft > 0.f)
                 {
-                    if(isact == 1 && audio_len < 6.f){nnt = t+6.f;}else{nnt = t+audio_timeleft;}
+                    if(isact == 1 && audio_len < 6.f){nnt = t+(6.f-(audio_len-audio_timeleft));}else{nnt = t+audio_timeleft;}
                 }
                 else{nnt = t+audio_len;} // this ensures that if audio play in browser (security) is disabled it will still wait a fair amount of time between each line
             }
