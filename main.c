@@ -407,8 +407,8 @@ const vec a6 = (vec){-0.721359f          , -0.5129505395889282f , -0.07f}; // wa
 const vec a7 = (vec){-0.7842308878898621f, -0.7341938614845276f , -0.07f}; // trash can
 
 // network data & emotes
-uint vemo=0,vemoi=0,isact=0;
-float nwait = 0.f;
+uint vemo=0,vemoi=0,isact=0,msgskip=0;
+float nwait = 0.f, nnt = 0.f;
 
 // talking
 uint t1=0, t2=0, t3=0, t4=0;
@@ -744,6 +744,13 @@ void doJump(const float bd)
 // network data
 //*************************************
 #ifdef WEB
+EMSCRIPTEN_KEEPALIVE void reloadSpeech()
+{
+    msgskip = 1;
+    head--;
+    nnt = 0.1f;
+    nwait = 0.f;
+}
 void updateURL()
 {
     EM_ASM({
@@ -832,6 +839,11 @@ GLuint esRand(const GLuint min, const GLuint max)
 }
 void addChat(const uint i, const char* msg)
 {
+    if(msgskip == 1)
+    {
+        msgskip = 0;
+        return;
+    }
     char t[1024];
     /**/ if(i == 12){snprintf(t, sizeof(t), "addChat(\"<b style='color:#ff99ff'>&lt;Catgirl&gt;</b> %s\")", msg);}
     else if(i == 16){snprintf(t, sizeof(t), "addChat(\"<b style='color:#1cffff'>&lt;Scientist&gt;</b> %s\")", msg);}
@@ -1006,46 +1018,43 @@ void main_loop()
 
 #ifdef WEB
     // check for new speech
+    if(t > nnt)
     {
-        static float nt = 0.f;
-        if(t > nt)
+        // not waiting on audio to load?
+        if(t > nwait)
         {
-            // not waiting on audio to load?
-            if(t > nwait)
-            {
-                // reset
-                clearTalking();
-                if(vemo != 0){vemo = 0;} // reset emote; time is up
+            // reset
+            clearTalking();
+            if(vemo != 0){vemo = 0;} // reset emote; time is up
 
-                // check for new lines if no audio is currently playing
-                if(is_audio_playing() == 0)
-                {
-                    char fn[256];
-                    snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
-                    emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
-                }
-                nt = t+1.f;
-            }
-            else
+            // check for new lines if no audio is currently playing
+            if(is_audio_playing() == 0)
             {
-                // this signals audio is loaded
-                const float audio_len = get_audiolen();
-                if(audio_len > 0.f)
-                {
-                    // reset audio len (we know the audio is loaded now)
-                    EM_ASM({window.audiolen = undefined;});
-                    nwait = 0.f;
-
-                    // set a wait based on how much time is left
-                    const float audio_timeleft = get_audio_timeleft();
-                    if(audio_timeleft > 0.f)
-                    {
-                        if(isact == 1 && audio_len < 6.f){nt = t+6.f;}else{nt = t+audio_timeleft;}
-                    }
-                    else{nt = t+audio_len;} // this ensures that if audio play in browser (security) is disabled it will still wait a fair amount of time between each line
-                }
-                else{nt = t+0.1f;}
+                char fn[256];
+                snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
+                emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
             }
+            nnt = t+1.f;
+        }
+        else
+        {
+            // this signals audio is loaded
+            const float audio_len = get_audiolen();
+            if(audio_len > 0.f)
+            {
+                // reset audio len (we know the audio is loaded now)
+                EM_ASM({window.audiolen = undefined;});
+                nwait = 0.f;
+
+                // set a wait based on how much time is left
+                const float audio_timeleft = get_audio_timeleft();
+                if(audio_timeleft > 0.f)
+                {
+                    if(isact == 1 && audio_len < 6.f){nnt = t+6.f;}else{nnt = t+audio_timeleft;}
+                }
+                else{nnt = t+audio_len;} // this ensures that if audio play in browser (security) is disabled it will still wait a fair amount of time between each line
+            }
+            else{nnt = t+0.1f;}
         }
     }
 #endif
