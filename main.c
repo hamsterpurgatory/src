@@ -902,12 +902,13 @@ void get_data_callback(void* user_data, void* buff, int size)
     else if(strcmp(vact, "trashcan"      ) == 0){doTrash(vcid);}
 
     // play audio / do talking
+    // audio.src = '/archive/v' + vhead + '.mp3?' + Date.now();
     EM_ASM({
         var vhead = $0;
         if(!window.voiceAudio){window.voiceAudio = new Audio();}
         window.audiolen = undefined;
         var audio = window.voiceAudio;
-        audio.src = '/archive/v' + vhead + '.mp3?' + Date.now();
+        audio.src = '/archive/v' + vhead + '.mp3';
         audio.load();
         audio.addEventListener('loadedmetadata', function(){window.audiolen = audio.duration;}, {once: true});
         audio.play().then(() => {document.getElementById('playContainer').style.display = 'none';}).catch(err => {document.getElementById('playContainer').style.display = 'block';});
@@ -1033,7 +1034,8 @@ void main_loop()
             if(is_audio_playing() == 0)
             {
                 char fn[256];
-                snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
+                //snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
+                snprintf(fn, sizeof(fn), "/archive/l%u.txt", head);
                 emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
             }
             nnt = t+0.5f;
