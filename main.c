@@ -1,5 +1,4 @@
 // License: AGPLv3 / https://www.gnu.org/licenses/agpl-3.0.en.html
-// Virtually all hamsters were harmed in the making of this game.
 // HamsterPurgatory.com / kick.com/HamsterPurgatory
 
 #ifdef WEB
@@ -371,7 +370,6 @@ uint head = 0;
 #ifdef PLAY_RANDOM
 uint max_head = 0;
 #endif
-float nnt = 0.f; // network next time
 
 // camera vars
 int mx=0, my=0, lx=0, ly=0, md=0, md2=0, w2=0.f;
@@ -409,8 +407,8 @@ const vec a6 = (vec){-0.721359f          , -0.5129505395889282f , -0.07f}; // wa
 const vec a7 = (vec){-0.7842308878898621f, -0.7341938614845276f , -0.07f}; // trash can
 
 // network data & emotes
-uint vemo=0,vemoi=0;
-float vemot = 0.f;
+uint vemo=0,vemoi=0,isact=0;
+float nwait = 0.f;
 
 // talking
 uint t1=0, t2=0, t3=0, t4=0;
@@ -753,34 +751,70 @@ void updateURL()
         history.replaceState({}, "", "?" + v);
     }, head-1);
 }
-EM_ASYNC_JS(int, get_url_head, (), {
+EM_JS(int, get_url_head, (), {
     try {
         var q = window.location.search.substring(1);
         var value = parseInt(q);
         return isNaN(value) ? -1 : Math.max(value, 0);
     }catch(e){return 0;}
 });
-EM_ASYNC_JS(int, get_max_head, (), {
+// EM_ASYNC_JS(int, get_max_head, (), {
+//     try {
+//         let res = await fetch('/archive/head.txt');
+//         let text = await res.text();
+//         return Math.max(parseInt(text.trim()) || 0, 0);
+//     }catch(e){return 0;}
+// });
+// EM_ASYNC_JS(int, get_head, (), {
+//     try {
+//         var q = window.location.search.substring(1);
+//         var value = parseInt(q);
+//         if(!isNaN(value)){return Math.max(value, 0);}
+//         let res = await fetch('/archive/head.txt');
+//         let text = await res.text();
+//         value = Math.max(parseInt(text.trim()) || 0, 0);
+//         return (value > 100) ? (value - 100) : 0;
+//     }catch(e){return 0;}
+// });
+EM_JS(int, get_max_head, (), {
     try {
-        let res = await fetch('/archive/head.txt');
-        let text = await res.text();
-        return Math.max(parseInt(text.trim()) || 0, 0);
-    }catch(e){return 0;}
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/archive/head.txt', false);
+        xhr.send(null);
+        if (xhr.status === 200) {
+            var text = xhr.responseText;
+            return Math.max(parseInt(text.trim()) || 0, 0);
+        } else {
+            return 0;
+        }
+    } catch(e) {
+        return 0;
+    }
 });
-EM_ASYNC_JS(int, get_head, (), {
+EM_JS(int, get_head, (), {
     try {
         var q = window.location.search.substring(1);
         var value = parseInt(q);
-        if(!isNaN(value)){return Math.max(value, 0);}
-        let res = await fetch('/archive/head.txt');
-        let text = await res.text();
-        value = Math.max(parseInt(text.trim()) || 0, 0);
-        return (value > 100) ? (value - 100) : 0;
-    }catch(e){return 0;}
+        if (!isNaN(value)) return Math.max(value, 0);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/archive/head.txt', false);
+        xhr.send(null);
+
+        if (xhr.status === 200) {
+            var text = xhr.responseText;
+            value = Math.max(parseInt(text.trim()) || 0, 0);
+            return (value > 100) ? (value - 100) : 0;
+        } else {
+            return 0;
+        }
+    } catch(e) {
+        return 0;
+    }
 });
-EM_ASYNC_JS(int, is_audio_playing, (), {
-    if(window.voiceAudio && !window.voiceAudio.paused && !window.voiceAudio.ended){return 1;}else{return 0;}
-});
+EM_JS(int, is_audio_playing, (), {if(window.voiceAudio && !window.voiceAudio.paused && !window.voiceAudio.ended){return 1;}else{return 0;}});
+EM_JS(float, get_audiolen, (), {return window.audiolen;});
+EM_JS(float, get_audio_timeleft, (), {if(window.voiceAudio && !window.voiceAudio.paused && !window.voiceAudio.ended){return window.voiceAudio.duration-window.voiceAudio.currentTime;}else{return 0;}});
 EM_JS(uint32_t, secure_random_uint, (),
 {
     var array = new Uint32Array(1);
@@ -813,6 +847,7 @@ void get_data_callback(void* user_data, void* buff, int size)
 
     // let's go
     cid = 0; // new sequence so reset back to sitting position
+    nwait = t+3.f; // set how long we are willing to wait for audio to load
 
     // null terminate the buffer data for sscanf
     char temp[2048];
@@ -821,7 +856,7 @@ void get_data_callback(void* user_data, void* buff, int size)
     temp[size] = '\0';
 
     // parsed strings (i should have passed vact and vemo as integer ids)
-    uint vlen=0, vcid=0;
+    uint vcid=0,vlen=0; // vlen no longer used
     char vmsg[512] = {0};
     char vact[32] = {0};
     char vemos[16] = {0};
@@ -831,31 +866,19 @@ void get_data_callback(void* user_data, void* buff, int size)
     vcid = (vcid*4)+12; // convert 0-3 id to 12-24
     for(size_t i = 0; vmsg[i]; i++){if(vmsg[i] == '"' || vmsg[i] == '<' || vmsg[i] == '>'){vmsg[i] = '\'';}} // some basic escaping to prevent potential prompt injection
 
-    // set emote
-    /**/ if(strcmp(vemos, "laugh") == 0){vemo=1;vemoi=vcid;vemot=t+vlen;}
-    else if(strcmp(vemos, "dance") == 0){vemo=2;vemoi=vcid;vemot=t+vlen;}
-    else if(strcmp(vemos, "yes"  ) == 0){vemo=3;vemoi=vcid;vemot=t+vlen;}
-    else if(strcmp(vemos, "no"   ) == 0){vemo=4;vemoi=vcid;vemot=t+vlen;}
-
     // update the html chatlog
     /**/ if(vcid == 12){printf("Catgirl: %s\n"  , vmsg);addChat(vcid, vmsg);}
     else if(vcid == 16){printf("Scientist: %s\n", vmsg);addChat(vcid, vmsg);}
     else if(vcid == 20){printf("Theorist: %s\n" , vmsg);addChat(vcid, vmsg);}
     else if(vcid == 24){printf("Karen: %s\n"    , vmsg);addChat(vcid, vmsg);}
 
-    // play audio / do talking
-    EM_ASM({
-        var vhead = $0;
-        if(!window.voiceAudio){window.voiceAudio = new Audio();}
-        var audio = window.voiceAudio;
-        audio.src = '/archive/v' + vhead + '.mp3?' + Date.now();
-        audio.load();
-        audio.play().catch(err => {document.getElementById('playContainer').style.display='block'});
-    }, head);
-    setTalking(vcid);
+    // set emote
+    /**/ if(strcmp(vemos, "laugh") == 0){vemo=1;vemoi=vcid;}
+    else if(strcmp(vemos, "dance") == 0){vemo=2;vemoi=vcid;}
+    else if(strcmp(vemos, "yes"  ) == 0){vemo=3;vemoi=vcid;}
+    else if(strcmp(vemos, "no"   ) == 0){vemo=4;vemoi=vcid;}
 
     // do action
-    uint isact = 0;
     /**/ if(strcmp(vact, "washingmachine") == 0){doWash (vcid); isact=1;}
     else if(strcmp(vact, "microwave"     ) == 0){doMicro(vcid); isact=1;}
     else if(strcmp(vact, "sink"          ) == 0){doSink (vcid); isact=1;}
@@ -864,13 +887,25 @@ void get_data_callback(void* user_data, void* buff, int size)
     else if(strcmp(vact, "toaster"       ) == 0){doToast(vcid); isact=1;}
     else if(strcmp(vact, "trashcan"      ) == 0){doTrash(vcid); isact=1;}
 
+    // play audio / do talking
+    EM_ASM({
+        var vhead = $0;
+        if(!window.voiceAudio){window.voiceAudio = new Audio();}
+        window.audiolen = undefined;
+        var audio = window.voiceAudio;
+        audio.src = '/archive/v' + vhead + '.mp3?' + Date.now();
+        audio.load();
+        audio.addEventListener('loadedmetadata', function(){window.audiolen = audio.duration;}, {once: true});
+        audio.play().then(() => {document.getElementById('playContainer').style.display = 'none';}).catch(err => {document.getElementById('playContainer').style.display = 'block';});
+    }, head);
+
+    // start the character talking
+    setTalking(vcid);
+
     // increment the head
     head++;
     if(head >= max_head){head = esRand(0, max_head-32);}
     updateURL();
-
-    // set next head poll time
-    if(isact == 1 && vlen < 6){nnt = t+6;}else{nnt = t+(float)vlen;}
 }
 #endif
 
@@ -943,9 +978,9 @@ void main_loop()
             else if(key == SDLK_5){doToast(12);}
             else if(key == SDLK_6){doWash(16); }
             else if(key == SDLK_7){doTrash(20);}
-            else if(key == SDLK_8){vemo=2;vemoi=12;vemot=t+6;t1=1;}
-            else if(key == SDLK_9){vemo=2;vemoi=20;vemot=t+6;t3=1;}
-            else if(key == SDLK_0){vemo=3;vemoi=16;vemot=t+6;t2=1;}
+            else if(key == SDLK_8){vemo=2;vemoi=12;t1=1;}
+            else if(key == SDLK_9){vemo=2;vemoi=20;t3=1;}
+            else if(key == SDLK_0){vemo=3;vemoi=16;t2=1;}
         }
         else if(event.type == SDL_MOUSEMOTION)
         {
@@ -971,17 +1006,47 @@ void main_loop()
 
 #ifdef WEB
     // check for new speech
-    if(t > nnt)
     {
-        clearTalking();
-        if(vemo != 0 && t > vemot){vemo = 0;} // reset emote; time is up
-        if(is_audio_playing() == 0)
+        static float nt = 0.f;
+        if(t > nt)
         {
-            char fn[256];
-            snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
-            emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
+            // not waiting on audio to load?
+            if(t > nwait)
+            {
+                // reset
+                clearTalking();
+                if(vemo != 0){vemo = 0;} // reset emote; time is up
+
+                // check for new lines if no audio is currently playing
+                if(is_audio_playing() == 0)
+                {
+                    char fn[256];
+                    snprintf(fn, sizeof(fn), "/archive/l%u.txt?t=%lld", head, time(0));
+                    emscripten_async_wget_data(fn, NULL, get_data_callback, NULL);
+                }
+                nt = t+1.f;
+            }
+            else
+            {
+                // this signals audio is loaded
+                const float audio_len = get_audiolen();
+                if(audio_len > 0.f)
+                {
+                    // reset audio len (we know the audio is loaded now)
+                    EM_ASM({window.audiolen = undefined;});
+                    nwait = 0.f;
+
+                    // set a wait based on how much time is left
+                    const float audio_timeleft = get_audio_timeleft();
+                    if(audio_timeleft > 0.f)
+                    {
+                        if(isact == 1 && audio_len < 6.f){nt = t+6.f;}else{nt = t+audio_timeleft;}
+                    }
+                    else{nt = t+audio_len;} // this ensures that if audio play in browser (security) is disabled it will still wait a fair amount of time between wach line
+                }
+                else{nt = t+0.1f;}
+            }
         }
-        nnt = t+1.f;
     }
 #endif
     
