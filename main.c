@@ -253,9 +253,8 @@ void mGetDirY(vec *r, const mat matrix)
     r->z = matrix.m[1][2];
 }
 mat projection, view, model, modelview;
-#define updateModelView() mMul(&modelview,&model,&view);glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&modelview.m[0][0])
-#define toView() glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&view.m[0][0])
-#define toModelView() glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&modelview.m[0][0])
+#define setModelView() mMul(&modelview,&model,&view);glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&modelview.m[0][0])
+#define setView() glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&view.m[0][0])
 const GLchar* v1 = // vertex shader
     "#version 100\n"
     "uniform mat4 projection;\n"
@@ -482,7 +481,7 @@ void rCharSit(const uint i, const vec pos, const float scale, const float mouth,
     mMul(&model, &gr, &model);
     mRotY(&model, 1.16f);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esBindRender(i+1);
 
     // arms
@@ -508,7 +507,7 @@ void rCharSit(const uint i, const vec pos, const float scale, const float mouth,
     mMul(&model, &gr, &model);
     mMul(&model, &r1, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esRenderModel();
 
     mIdent(&model);
@@ -516,7 +515,7 @@ void rCharSit(const uint i, const vec pos, const float scale, const float mouth,
     mMul(&model, &gr, &model);
     if(vemoi == i && vemo == 2){mMul(&model, &r1, &model);mRotY(&model, ar*0.3f);}else{mMul(&model, &r1, &model);}
     mScale(&model, -scale, scale, scale);
-    updateModelView();
+    setModelView();
     esRenderModel();
 
     // head
@@ -548,7 +547,7 @@ void rCharSit(const uint i, const vec pos, const float scale, const float mouth,
     mMul(&model, &gr, &model);
     mMul(&model, &r1, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esBindRender(i+2); // head
 
     mTranslate(&model, 0.f, -mouth_dist, mouth_height);
@@ -563,7 +562,7 @@ void rCharSit(const uint i, const vec pos, const float scale, const float mouth,
             mScale(&model, 1.f, 1.f, (1.f-mouth)+(mouth*fabsf(sinf(t*5.f))));
         }
     }
-    updateModelView();
+    setModelView();
     esBindRender(i+3); // mouth
 }
 void rCharStand(const uint i, const vec pos, const float scale, const float mouth, const float mouth_dist, const float mouth_height, const float rot, const uint talking)
@@ -577,7 +576,7 @@ void rCharStand(const uint i, const vec pos, const float scale, const float mout
     mSetPos(&model, pos);
     mMul(&model, &gr, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esBindRender(i+1);
 
     // arms
@@ -613,7 +612,7 @@ void rCharStand(const uint i, const vec pos, const float scale, const float mout
     mMul(&model, &gr, &model);
     if(vemoi == i && vemo == 2){mMul(&model, &r1, &model);}
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esRenderModel();
 
     mIdent(&model);
@@ -621,7 +620,7 @@ void rCharStand(const uint i, const vec pos, const float scale, const float mout
     mMul(&model, &gr, &model);
     if(vemoi == i && vemo == 2){mMul(&model, &r1, &model);mRotY(&model, ar*0.3f);}
     mScale(&model, -scale, scale, scale);
-    updateModelView();
+    setModelView();
     esRenderModel();
 
     // head
@@ -640,7 +639,7 @@ void rCharStand(const uint i, const vec pos, const float scale, const float mout
     mMul(&model, &gr, &model);
     mMul(&model, &r1, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esBindRender(i+2); // head
 
     mTranslate(&model, 0.f, -mouth_dist, mouth_height);
@@ -655,7 +654,7 @@ void rCharStand(const uint i, const vec pos, const float scale, const float mout
             mScale(&model, 1.f, 1.f, (1.f-mouth)+(mouth*fabsf(sinf(t*5.f))));
         }
     }
-    updateModelView();
+    setModelView();
     esBindRender(i+3); // mouth
 }
 void rCharJump(const uint i, const vec pos, const float scale, const float rot1, const float rot2)
@@ -670,7 +669,7 @@ void rCharJump(const uint i, const vec pos, const float scale, const float rot1,
     mSetPos(&model, pos);
     mMul(&model, &gr, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esBindRender(i+1);
 
     // arms
@@ -679,14 +678,14 @@ void rCharJump(const uint i, const vec pos, const float scale, const float rot1,
     mSetPos(&model, pos);
     mMul(&model, &gr, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esRenderModel();
 
     mIdent(&model);
     mSetPos(&model, pos);
     mMul(&model, &gr, &model);
     mScale(&model, -scale, scale, scale);
-    updateModelView();
+    setModelView();
     esRenderModel();
 
     // head
@@ -694,7 +693,7 @@ void rCharJump(const uint i, const vec pos, const float scale, const float rot1,
     mSetPos(&model, pos);
     mMul(&model, &gr, &model);
     mScale1(&model, scale);
-    updateModelView();
+    setModelView();
     esBindRender(i+2);
 }
 void rStand(const uint c, const vec p)
@@ -1121,7 +1120,7 @@ void main_loop()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // render world
-    toView();
+    setView();
     esBindRender(0); // scene
 
     uint actions_running = 7;
@@ -1130,32 +1129,26 @@ void main_loop()
     if(micro > t)
     {
         const float bd = 6.f-(micro-t);
-        toModelView();
         doJump(bd);
 
         if(bd >= 3.f)
         {
-            toView();
-
+            setView();
             esBindRender(9); // microwave blood
-            
-            toModelView();
 
             // spining plate
             mIdent(&model);
             mSetPos(&model, (vec){-0.793158f, 0.681474f, -0.08111f});
-            updateModelView();
+            setModelView();
             esBindRender(8);
         }
         else
         {
-            toModelView();
-
             // spining plate
             mIdent(&model);
             mSetPos(&model, (vec){-0.793158f, 0.681474f, -0.08111f});
             mSetRotZ(&model, t*3.f);
-            updateModelView();
+            setModelView();
             esBindRender(8);
             
             // hamster
@@ -1163,26 +1156,22 @@ void main_loop()
             mSetPos(&model, (vec){-0.793158f, 0.681474f, -0.06f});
             mSetRotZ(&model, t*3.f);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
     }
     else
     {
-        toModelView();
-
         // static plate
         mIdent(&model);
         mSetPos(&model, (vec){-0.793158f, 0.681474f, -0.08111f});
-        updateModelView();
+        setModelView();
         esBindRender(8);
 
         actions_running--;
     }
 
     // characters
-    toModelView();
-
     glUniform1f(ambient_id, 0.8f);
     if(cid != 12){rCharSit  (12, s1, 0.17f, 0.5f , 0.326f, 0.284f,  0.f , t1);}
     if(cid != 16){rCharSit  (16, s2, 0.11f, 0.4f , 0.45f , 0.46f ,  d2PI, t2);}
@@ -1204,7 +1193,7 @@ void main_loop()
             mIdent(&model);
             mSetPos(&model, (vec){-0.777437f, -0.088362f, -0.077077f});
             mSetRotZ(&model, t*19.f);
-            updateModelView();
+            setModelView();
             esBindRender(6);
 
             // hamster
@@ -1212,7 +1201,7 @@ void main_loop()
             mSetPos(&model, (vec){-0.777437f, -0.088362f, -0.057f-(bd*0.01f)});
             mSetRotZ(&model, t*9.f);
             mScale1(&model, 0.01f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
         else
@@ -1220,7 +1209,7 @@ void main_loop()
             // static rotor
             mIdent(&model);
             mSetPos(&model, (vec){-0.777437f, -0.088362f, -0.077077f});
-            updateModelView();
+            setModelView();
             esBindRender(6);
         }
     }
@@ -1229,7 +1218,7 @@ void main_loop()
         // static rotor
         mIdent(&model);
         mSetPos(&model, (vec){-0.777437f, -0.088362f, -0.077077f});
-        updateModelView();
+        setModelView();
         esBindRender(6);
 
         actions_running--;
@@ -1249,7 +1238,7 @@ void main_loop()
             mSetPos(&model, (vec){-0.817487f, 0.37f, -0.097172f-((3.f-(sink-t))*0.007f)});
             mSetRotZ(&model, d*3.f);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
         else
@@ -1258,7 +1247,7 @@ void main_loop()
             mIdent(&model);
             mSetPos(&model, (vec){-0.817487f, 0.46f-(bd*0.03f), -0.097172f});
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
     }
@@ -1280,7 +1269,7 @@ void main_loop()
             mSetRotX(&model, -d2PI);
             mRotY(&model, -PI);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esRenderModel();
 
             mIdent(&model);
@@ -1289,7 +1278,7 @@ void main_loop()
             mRotY(&model, -PI);
             mRotZ(&model, PI);
             mScale(&model, -0.02f, 0.02f, 0.02f);
-            updateModelView();
+            setModelView();
             esRenderModel();
         }
         else if(bd >= 2.f)
@@ -1300,7 +1289,7 @@ void main_loop()
             mSetPos(&model, (vec){-0.784052f, 0.10f, -0.08f});
             mSetRotX(&model, d2PI);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esRenderModel();
 
             mIdent(&model);
@@ -1308,7 +1297,7 @@ void main_loop()
             mSetRotX(&model, d2PI);
             mRotZ(&model, PI);
             mScale(&model, -0.02f, 0.02f, 0.02f);
-            updateModelView();
+            setModelView();
             esRenderModel();
         }
         else if(bd >= 1.f && bd < 2.f)
@@ -1319,14 +1308,14 @@ void main_loop()
             mSetPos(&model, (vec){-0.784052f, 0.103f, -0.063f});
             mSetRotZ(&model, -d2PI);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esRenderModel();
 
             mIdent(&model);
             mSetPos(&model, (vec){-0.784052f, 0.117f, -0.063f});
             mSetRotZ(&model, -d2PI);
             mScale(&model, -0.02f, 0.02f, 0.02f);
-            updateModelView();
+            setModelView();
             esRenderModel();
         }
         else
@@ -1336,7 +1325,7 @@ void main_loop()
             mSetPos(&model, (vec){-0.784052f, 0.11f, -0.063f});
             mSetRotZ(&model, -d2PI);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
     }
@@ -1355,7 +1344,7 @@ void main_loop()
             mSetRotX(&model, PI);
             mRotY(&model, -t*1.2f);
             mScale1(&model, 0.01f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
         else if(bd >= 0.3f && bd < 3.f)
@@ -1364,7 +1353,7 @@ void main_loop()
             mSetPos(&model, (vec){-0.767367f, -0.217887f, -0.066854f+(sinf(bd)*0.08f)});
             mSetRotY(&model, -t*1.2f);
             mScale1(&model, 0.01f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
     }
@@ -1384,14 +1373,14 @@ void main_loop()
             mSetPos(&model, (vec){-0.862915f, -0.437543f, 0.007f});
             mSetRotY(&model, -t*4.4f);
             mScale1(&model, 0.03f);
-            updateModelView();
+            setModelView();
             esRenderModel();
 
             mIdent(&model);
             mSetPos(&model, (vec){-0.862915f, -0.58373f, 0.007f});
             mSetRotY(&model, t*4.4f);
             mScale1(&model, 0.03f);
-            updateModelView();
+            setModelView();
             esRenderModel();
 
             mIdent(&model);
@@ -1399,7 +1388,7 @@ void main_loop()
             mSetRotX(&model, PI);
             mRotY(&model, -t*4.4f);
             mScale1(&model, 0.03f);
-            updateModelView();
+            setModelView();
             esRenderModel();
 
             mIdent(&model);
@@ -1407,7 +1396,7 @@ void main_loop()
             mSetRotX(&model, PI);
             mRotY(&model, t*4.4f);
             mScale1(&model, 0.03f);
-            updateModelView();
+            setModelView();
             esRenderModel();
         }
     }
@@ -1425,7 +1414,7 @@ void main_loop()
             mSetPos(&model, (vec){-0.878552f, -0.734222f, -0.113925f});
             mSetRotZ(&model, -t*4.4f);
             mScale(&model, 1.f, 1.f, 1.f+fabsf(sinf(d2PI+bd)*9.f));
-            updateModelView();
+            setModelView();
             esBindRender(11);
         }
         else if(bd >= 0.3f && bd < 2.f)
@@ -1435,7 +1424,7 @@ void main_loop()
             mSetRotZ(&model, d2PI);
             mRotY(&model, -t*4.4f);
             mScale1(&model, 0.02f);
-            updateModelView();
+            setModelView();
             esBindRender(3);
         }
     }
@@ -1447,19 +1436,19 @@ void main_loop()
     mIdent(&model);
     mSetPos(&model, (vec){0.170532f, 0.018884f, -0.10102f});
     mScale1(&model, 0.017f);
-    updateModelView();
+    setModelView();
     esBindRender(3);
     mIdent(&model);
     mSetPos(&model, (vec){0.256f, 0.04f, -0.10102f});
     mSetRotX(&model, 1.3);
     mScale1(&model, 0.013f);
-    updateModelView();
+    setModelView();
     esBindRender(5);
 
     // transparent objects
     glEnable(GL_BLEND);
 
-        toView();
+        setView();
         
         // blender
         if(blend > t)
@@ -1489,11 +1478,10 @@ void main_loop()
         esBindRender(1); // glass
         
         // sink water
-        toModelView();
         mIdent(&model);
         mSetPos(&model, (vec){-0.817487f, 0.412384f, -0.097172f});
         mScale(&model, 1.f, 1.f, sinf(t*0.84f));
-        updateModelView();
+        setModelView();
         esBindRender(2);
 
     glDisable(GL_BLEND);
