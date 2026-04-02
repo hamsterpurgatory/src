@@ -877,7 +877,7 @@ void get_data_callback(void* user_data, void* buff, int size)
     char vemos[16] = {0};
 
     // parse data
-    sscanf(temp, "%d|%d|%31[^|]|%15[^|]|%511[^|]", &vcid, &vlen, vact, vemos, vmsg);
+    if(sscanf(temp, "%d|%d|%31[^|]|%15[^|]|%511[^|]", &vcid, &vlen, vact, vemos, vmsg) < 5){return;} // uh oh!
     vcid = (vcid*4)+12; // convert 0-3 id to 12-24
     for(size_t i = 0; vmsg[i]; i++){if(vmsg[i] == '"' || vmsg[i] == '<' || vmsg[i] == '>'){vmsg[i] = '\'';}} // some basic escaping to prevent potential prompt injection
 
