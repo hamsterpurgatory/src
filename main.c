@@ -304,6 +304,8 @@ void makeShader()
         glAttachShader(shader, vertexShader);
         glAttachShader(shader, fragmentShader);
     glLinkProgram(shader);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
     position_id   = glGetAttribLocation(shader,  "position");
     color_id      = glGetAttribLocation(shader,  "color");
     projection_id = glGetUniformLocation(shader, "projection");
@@ -864,7 +866,7 @@ void get_data_callback(void* user_data, void* buff, int size)
 
     // null terminate the buffer data for sscanf
     char temp[2048];
-    if((size_t)size >= sizeof(temp)){size = sizeof(temp) - 1;}
+    if((size_t)size >= sizeof(temp)){size = sizeof(temp)-1;}
     memcpy(temp, buff, size);
     temp[size] = '\0';
 
