@@ -987,7 +987,6 @@ void main_loop()
         else if(event.type == SDL_KEYDOWN) // debug
         {
             const SDL_Keycode key = event.key.keysym.sym;
-            const SDL_Keycode scan = event.key.keysym.scancode;
             if(     key == SDLK_1){doBlend(12);}
             else if(key == SDLK_2){doMicro(16);}
             else if(key == SDLK_3){doSink(20); }
