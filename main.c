@@ -320,7 +320,7 @@ const GLchar* f1 = // fragment shader
     "void main()\n"
     "{\n"
         "vec3 vertPos2 = vertPos.xyz / vertPos.w;"
-        "vec3 normal = normalize(cross(dFdx(vertPos2), dFdy(vertPos2)));\n"
+        "vec3 normal = normalize(cross(dFdx(vertPos.xyz), dFdy(vertPos.xyz)));\n"
         "vec3 absN = abs(normal);\n"
         "vec3 axisColor = (vertCol*0.95) * absN.x + vertCol * absN.y + (vertCol*0.975) * absN.z;\n"
         "float lambertian = clamp(max(dot(normalize(-vertPos2), normal), 0.0), 0.64, 1.0);\n"
