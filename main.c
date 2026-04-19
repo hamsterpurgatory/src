@@ -47,10 +47,8 @@ void esBindModel(const uint id)
 {
     glBindBuffer(GL_ARRAY_BUFFER, esModelArray[id].vid);
     glVertexAttribPointer(position_id, 3, GL_SHORT, GL_TRUE, 0, 0);
-    glEnableVertexAttribArray(position_id);
     glBindBuffer(GL_ARRAY_BUFFER, esModelArray[id].cid);
     glVertexAttribPointer(color_id, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
-    glEnableVertexAttribArray(color_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, esModelArray[id].iid);
     esBoundModel = id;
 }
@@ -59,10 +57,8 @@ void esBindRender(const uint id)
 {
     glBindBuffer(GL_ARRAY_BUFFER, esModelArray[id].vid);
     glVertexAttribPointer(position_id, 3, GL_SHORT, GL_TRUE, 0, 0);
-    glEnableVertexAttribArray(position_id);
     glBindBuffer(GL_ARRAY_BUFFER, esModelArray[id].cid);
     glVertexAttribPointer(color_id, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
-    glEnableVertexAttribArray(color_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, esModelArray[id].iid);
     glDrawElements(GL_TRIANGLES, esModelArray[id].ni, esModelArray[id].itp, 0);
 }
@@ -255,6 +251,43 @@ void mGetDirY(vec *r, const mat matrix)
 mat projection, view, model, modelview;
 #define setModelView() mMul(&modelview,&model,&view);glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&modelview.m[0][0])
 #define setView() glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&view.m[0][0])
+// const GLchar* v1 = // vertex shader
+//     "#version 100\n"
+//     "uniform mat4 projection;\n"
+//     "uniform mat4 modelview;\n"
+//     "uniform float opacity;\n"
+//     "uniform float ambient;\n"
+//     "attribute vec4 position;\n"
+//     "attribute vec3 color;\n"
+//     "varying vec3 vertPos;\n"
+//     "varying vec3 vertCol;\n"
+//     "varying float vertOpa;\n"
+//     "varying float vertAmb;\n"
+//     "void main()\n"
+//     "{\n"
+//         "vec4 vertPos4 = modelview * position;\n"
+//         "vertPos = vertPos4.xyz / vertPos4.w;\n"
+//         "vertCol = color;\n"
+//         "vertOpa = opacity;\n"
+//         "vertAmb = ambient;\n"
+//         "gl_Position = projection * vertPos4;\n"
+//     "}\n";
+// const GLchar* f1 = // fragment shader
+//     "#version 100\n"
+//     "#extension GL_OES_standard_derivatives : enable\n"
+//     "precision highp float;\n"
+//     "varying vec3 vertPos;\n"
+//     "varying vec3 vertCol;\n"
+//     "varying float vertOpa;\n"
+//     "varying float vertAmb;\n"
+//     "void main()\n"
+//     "{\n"
+//         "vec3 normal = normalize(cross(dFdx(vertPos), dFdy(vertPos)));\n"
+//         "vec3 absN = abs(normal);\n"
+//         "vec3 axisColor = (vertCol*0.95) * absN.x + vertCol * absN.y + (vertCol*0.975) * absN.z;\n"
+//         "float lambertian = clamp(max(dot(normalize(-vertPos), normal), 0.0), 0.64, 1.0);\n"
+//         "gl_FragColor = vec4((lambertian*axisColor*vertAmb), vertOpa);\n"
+//     "}\n";
 const GLchar* v1 = // vertex shader
     "#version 100\n"
     "uniform mat4 projection;\n"
@@ -263,14 +296,14 @@ const GLchar* v1 = // vertex shader
     "uniform float ambient;\n"
     "attribute vec4 position;\n"
     "attribute vec3 color;\n"
-    "varying vec3 vertPos;\n"
+    "varying vec4 vertPos;\n"
     "varying vec3 vertCol;\n"
     "varying float vertOpa;\n"
     "varying float vertAmb;\n"
     "void main()\n"
     "{\n"
         "vec4 vertPos4 = modelview * position;\n"
-        "vertPos = vertPos4.xyz / vertPos4.w;\n"
+        "vertPos = vertPos4;\n"
         "vertCol = color;\n"
         "vertOpa = opacity;\n"
         "vertAmb = ambient;\n"
@@ -280,16 +313,17 @@ const GLchar* f1 = // fragment shader
     "#version 100\n"
     "#extension GL_OES_standard_derivatives : enable\n"
     "precision highp float;\n"
-    "varying vec3 vertPos;\n"
+    "varying vec4 vertPos;\n"
     "varying vec3 vertCol;\n"
     "varying float vertOpa;\n"
     "varying float vertAmb;\n"
     "void main()\n"
     "{\n"
-        "vec3 normal = normalize(cross(dFdx(vertPos), dFdy(vertPos)));\n"
+        "vec3 vertPos2 = vertPos.xyz / vertPos.w;"
+        "vec3 normal = normalize(cross(dFdx(vertPos2), dFdy(vertPos2)));\n"
         "vec3 absN = abs(normal);\n"
         "vec3 axisColor = (vertCol*0.95) * absN.x + vertCol * absN.y + (vertCol*0.975) * absN.z;\n"
-        "float lambertian = clamp(max(dot(normalize(-vertPos), normal), 0.0), 0.64, 1.0);\n"
+        "float lambertian = clamp(max(dot(normalize(-vertPos2), normal), 0.0), 0.64, 1.0);\n"
         "gl_FragColor = vec4((lambertian*axisColor*vertAmb), vertOpa);\n"
     "}\n";
 void makeShader()
@@ -313,6 +347,8 @@ void makeShader()
     opacity_id    = glGetUniformLocation(shader, "opacity");
     ambient_id    = glGetUniformLocation(shader, "ambient");
     glUseProgram(shader);
+    glEnableVertexAttribArray(position_id);
+    glEnableVertexAttribArray(color_id);
 }
 
 //*************************************
