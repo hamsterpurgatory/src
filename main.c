@@ -856,8 +856,8 @@ void addChat(const uint i, const char* msg)
 void get_data_callback(void* user_data, void* buff, int size)
 {
     // check for any errors in the data
-    if(size < 8){free(buff);return;}
-    if(((char*)buff)[1] != '|'){free(buff);return;}
+    if(size < 8){return;}
+    if(((char*)buff)[1] != '|'){return;}
 
     // let's go
     cid = 0; // new sequence so reset back to sitting position
@@ -877,7 +877,7 @@ void get_data_callback(void* user_data, void* buff, int size)
     char vemos[16] = {0};
 
     // parse data
-    if(sscanf(temp, "%d|%d|%31[^|]|%15[^|]|%511[^|]", &vcid, &vlen, vact, vemos, vmsg) < 5){free(buff);return;} // uh oh!
+    if(sscanf(temp, "%d|%d|%31[^|]|%15[^|]|%511[^|]", &vcid, &vlen, vact, vemos, vmsg) < 5){return;} // uh oh!
     vcid = (vcid*4)+12; // convert 0-3 id to 12-24
     for(size_t i = 0; vmsg[i]; i++){if(vmsg[i] == '"' || vmsg[i] == '<' || vmsg[i] == '>'){vmsg[i] = '\'';}} // some basic escaping to prevent potential prompt injection
 
@@ -922,7 +922,6 @@ void get_data_callback(void* user_data, void* buff, int size)
     head++;
     if(head >= max_head){head = esRand(0, max_head-32);}
     updateURL();
-    free(buff);
 }
 #endif
 
