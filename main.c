@@ -242,12 +242,6 @@ void mRotZ(mat *r, const float radians)
                     0.f, 0.f, 0.f, 1.f };
     mMul(r, &t, r);
 }
-void mGetDirY(vec *r, const mat matrix)
-{
-    r->x = matrix.m[1][0];
-    r->y = matrix.m[1][1];
-    r->z = matrix.m[1][2];
-}
 mat projection, view, model, modelview;
 #define setModelView() mMul(&modelview,&model,&view);glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&modelview.m[0][0])
 #define setView() glUniformMatrix4fv(modelview_id,1,GL_FALSE,(float*)&view.m[0][0])
